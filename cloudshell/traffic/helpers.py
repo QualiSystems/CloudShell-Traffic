@@ -1,4 +1,6 @@
-
+"""
+Helpers for cloudshell traffic shells and scripts.
+"""
 import logging
 import re
 import time
@@ -11,18 +13,20 @@ from cloudshell.workflow.orchestration.sandbox import Sandbox
 
 
 class WriteMessageToReservationOutputHandler(logging.Handler):
+    """ Logger handler to write log messages to reservation output. """
 
-    def __init__(self, sandbox):
-        self.sandbox = sandbox
+    def __init__(self, context_or_sandbox: Union[ResourceCommandContext, Sandbox]):
+        self.sandbox = context_or_sandbox
         if type(self.sandbox) == Sandbox:
             self.session = self.sandbox.automation_api
             self.sandbox_id = self.sandbox.id
         else:
-            self.session = get_cs_session(sandbox)
-            self.sandbox_id = get_reservation_id(sandbox)
+            self.session = get_cs_session(context_or_sandbox)
+            self.sandbox_id = get_reservation_id(context_or_sandbox)
         super().__init__()
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
+        """ Actually log the specified logging record to reservation output. """
         log_entry = self.format(record)
         self.session.WriteMessageToReservationOutput(self.sandbox_id, log_entry)
 
@@ -60,8 +64,9 @@ def get_reservation_id(context_sandbox_reservation) -> str:
         pass
 
 
-def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> ReservationDescriptionInfo:
-    """ Get reserservation description. """
+def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext,
+                                                          Sandbox]) -> ReservationDescriptionInfo:
+    """ Get reservation description. """
     reservation_id = get_reservation_id(context_or_sandbox)
     cs_session = get_cs_session(context_or_sandbox)
     return cs_session.GetReservationDetails(reservation_id).ReservationDescription
@@ -105,29 +110,23 @@ def set_family_attribute(context_or_sandbox: Union[ResourceCommandContext, Sandb
 
 
 def add_resource_to_db(context: ResourceCommandContext, resource_model, resource_full_name, resource_address='na',
-                       **attributes):
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
-
+                       **attributes) -> None:
+    """ Add resource to cloudshell DB if not already exist. """
+    cs_session = get_cs_session(context)
     resources_w_requested_name = cs_session.FindResources(resourceFullName=resource_full_name).Resources
     if len(resources_w_requested_name) > 0:
         return
-
-    cs_session.CreateResource(resourceFamily='CS_GenericResource',
-                               resourceModel=resource_model,
-                               resourceName=resource_full_name,
-                               resourceAddress=resource_address)
+    cs_session.CreateResource(resourceModel=resource_model, resourceName=resource_full_name,
+                              resourceAddress=resource_address)
     if context.reservation.domain != 'Global':
-        cs_session.AddResourcesToDomain(domainName=context.reservation.domain,
-                                        resourcesNames=[resource_full_name])
+        cs_session.AddResourcesToDomain(domainName=context.reservation.domain, resourcesNames=[resource_full_name])
     for attribute, value in attributes.items():
         set_family_attribute(context, resource_full_name, attribute, value)
 
 
 def wait_for_resources(cs_session: CloudShellAPISession, reservation_id: str, resources_names: Union[list, str],
                        timeout: int = 4) -> None:
-    """ Wait untill all resources show in reservation detilas. """
+    """ Wait until all resources show in reservation details. """
     if type(resources_names) == str:
         resources_names = [resources_names]
     for _ in range(timeout + 1):
@@ -141,7 +140,7 @@ def wait_for_resources(cs_session: CloudShellAPISession, reservation_id: str, re
 
 def wait_for_services(cs_session: CloudShellAPISession, reservation_id: str, aliases: Union[list, str],
                       timeout: int = 4) -> None:
-    """ Wait untill all services show in reservation detilas. """
+    """ Wait until all services show in reservation details. """
     if type(aliases) == str:
         aliases = [aliases]
     for _ in range(timeout + 1):
@@ -155,7 +154,7 @@ def wait_for_services(cs_session: CloudShellAPISession, reservation_id: str, ali
 
 def wait_for_connectors(cs_session: CloudShellAPISession, reservation_id: str, aliases: Union[list, str],
                         timeout: int = 4) -> None:
-    """ Wait untill all connectors show in reservation detilas. """
+    """ Wait until all connectors show in reservation details. """
     if type(aliases) == str:
         aliases = [aliases]
     for _ in range(timeout + 1):
@@ -186,4 +185,4 @@ def get_location(port_resource) -> str:
 
     :param port_resource: Port resource object.
     """
-    return re.sub(r'M|PG[0-9]+\/|P', '', port_resource.FullAddress)
+    return re.sub(r'M|PG[0-9]+/|P', '', port_resource.FullAddress)

@@ -5,12 +5,7 @@ from .rest_json_client import RestJsonClient
 
 
 def create_quali_api_instance(context, logger):
-    """
-    Get needed attributes from context and create instance of QualiApiHelper
-    :param context:
-    :param logger:
-    :return:
-    """
+    """ Get needed attributes from context and create instance of QualiApiHelper """
     if hasattr(context, 'reservation') and context.reservation:
         domain = context.reservation.domain
     elif hasattr(context, 'remote_reservation') and context.remote_reservation:
@@ -39,11 +34,8 @@ class QualiAPIHelper:
         self._token = token
         self.__rest_client = RestJsonClient(self._server_name, False)
 
-    def login(self):
-        """
-        Login
-        :return:
-        """
+    def login(self) -> None:
+        """ Login to cloudshell. """
         uri = 'API/Auth/Login'
         if self._token:
             json_data = {'token': self._token, 'domain': self._domain}
@@ -54,15 +46,10 @@ class QualiAPIHelper:
 
     def attach_new_file(self, reservation_id: str, file_data: StringIO, file_name: str) -> None:
         file_to_upload = {'QualiPackage': file_data}
-        data = {
-            "reservationId": reservation_id,
-            "saveFileAs": file_name,
-            "overwriteIfExists": "true",
-        }
-
-        self.__rest_client.request_post_files('API/Package/AttachFileToReservation',
-                                              data=data,
-                                              files=file_to_upload)
+        data = {'reservationId': reservation_id,
+                'saveFileAs': file_name,
+                'overwriteIfExists': "true"}
+        self.__rest_client.request_post_files('API/Package/AttachFileToReservation', data=data, files=file_to_upload)
 
     def get_attached_files(self, reservation_id):
         uri = 'API/Package/GetReservationAttachmentsDetails/{0}'.format(reservation_id)
@@ -71,16 +58,13 @@ class QualiAPIHelper:
 
     def get_attached_file(self, reservation_id, file_name):
         uri = 'API/Package/GetReservationAttachment/{0}'.format(reservation_id)
-        data = {
-            "reservationId": reservation_id,
-            "FileName": file_name,
-            "SaveToFolderPath": r"lalallala",
-        }
+        data = {'reservationId': reservation_id,
+                'FileName': file_name,
+                'SaveToFolderPath': r"na"}
         return self.__rest_client.request_post(uri, data)
 
     def remove_attached_files(self, reservation_id):
         for file_name in self.get_attached_files(reservation_id):
-            file_to_delete = {"reservationId": reservation_id,
-                              "FileName": file_name
-                              }
+            file_to_delete = {'reservationId': reservation_id,
+                              'FileName': file_name}
             self.__rest_client.request_post('API/Package/DeleteFileFromReservation', data=file_to_delete) or []
