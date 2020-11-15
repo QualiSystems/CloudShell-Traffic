@@ -69,7 +69,7 @@ def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext
     """ Get reservation description. """
     reservation_id = get_reservation_id(context_or_sandbox)
     cs_session = get_cs_session(context_or_sandbox)
-    return cs_session.GetReservationDetails(reservation_id).ReservationDescription
+    return cs_session.GetReservationDetails(reservation_id, disableCache=True).ReservationDescription
 
 
 def get_family_attribute(context_or_sandbox: Union[ResourceCommandContext, Sandbox], resource_name: str,
