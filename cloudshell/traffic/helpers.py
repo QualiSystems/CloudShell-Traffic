@@ -166,6 +166,18 @@ def wait_for_connectors(cs_session: CloudShellAPISession, reservation_id: str, a
     raise TimeoutError(f'Connectors {aliases} not in reservation after {timeout} seconds')
 
 
+def wait_for_attribute(cs_session: CloudShellAPISession, reservation_id: str, alias: str, attribute_name: str,
+                       attribute_value: str, timeout: int = 4) -> None:
+    """ Wait until an attribute that was set is updated on the sandbox. """
+    for _ in range(timeout + 1):
+        all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
+        service = [s for s in all_services if s.Alias == alias][0]
+        current_attribute_value = [a.Value for a in service.Attributes if a.Name == attribute_name][0]
+        if current_attribute_value == attribute_value:
+            return
+        time.sleep(1)
+
+
 def get_resources_from_reservation(context_or_sandbox: Union[ResourceCommandContext, Sandbox],
                                    *resource_models: str) -> List[ReservedResourceInfo]:
     """ Get all resources with the requested resource model names. """
