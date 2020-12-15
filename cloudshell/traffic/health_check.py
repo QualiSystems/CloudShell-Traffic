@@ -1,22 +1,27 @@
 import json
 import logging
 from collections import OrderedDict
+from ipaddress import ip_address, AddressValueError
 from io import StringIO
 from multiprocessing.dummy import Pool as ThreadPool
 from typing import Optional, Union, List, Dict
 
-from cloudshell.api.cloudshell_api import CloudShellAPISession, InputNameValue, ServiceInstance, FindResourceInfo
+from netaddr.eui import EUI
+from netaddr.core import AddrFormatError
+from netaddr.strategy.eui48 import mac_cisco
+
+from cloudshell.api.cloudshell_api import (CloudShellAPISession, InputNameValue, ServiceInstance, FindResourceInfo,
+                                           AttributeNameValue)
 from cloudshell.logging.qs_logger import get_qs_logger
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 
-from cloudshell.traffic.helpers import (get_reservation_id, get_reservation_description,
+from cloudshell.traffic.helpers import (get_reservation_id, get_reservation_description, get_services_from_reservation,
                                         WriteMessageToReservationOutputHandler)
 from cloudshell.traffic.health_check_reports import create_html
 from cloudshell.traffic.quali_rest_api_helper import QualiAPIHelper
-
 
 ACS_MODEL = 'Acs'
 CABLE_MODEM_FAMILY = 'CS_CableModem'
@@ -118,6 +123,14 @@ class HealthCheckDriver(ResourceDriverInterface):
         return OrderedDict({'name': '', 'result': False, 'status': '', 'summary': {}, 'log': {}})
 
 
+EMPTY_ADDRESS_ERROR_MESSAGE = ('\nINPUT ERROR: Address cannot be empty\n'
+                               'Go to SANDBOX -> Properties -> Parameters and set MAC/IP Address\n'
+                               'Then run COMMANDS -> Setup again\n\n')
+INVALID_ADDRESS_ERROR_MESSAGE = ('\nINPUT ERROR: Invalid Address {}\n'
+                                 'Go to SANDBOX -> Properties -> Parameters and reset MAC/IP Address\n'
+                                 'Then run COMMANDS -> Setup again\n\n')
+
+
 class HealthCheckOrchestration:
     """ Base orchestration script for health check blueprints. """
 
@@ -136,6 +149,94 @@ class HealthCheckOrchestration:
 
         self.health_checks = OrderedDict()
 
+    def _validate_mac_address(self, address) -> Optional[str]:
+        """ Validate that input MAC address is valid - raise error if not.
+
+        :param address: MAC address to validate, supports all MacUtils formats.
+        """
+        if address:
+            try:
+                mac = EUI(address)
+                mac.dialect = mac_cisco
+                return str(mac)
+            except AddrFormatError as e:
+                self.api.WriteMessageToReservationOutput(reservationId=self.sandbox.id,
+                                                         message=INVALID_ADDRESS_ERROR_MESSAGE.format(address))
+                raise ValueError(f'Invalid MAC address - {address}') from e
+        else:
+            self.api.WriteMessageToReservationOutput(reservationId=self.sandbox.id, message=EMPTY_ADDRESS_ERROR_MESSAGE)
+            raise ValueError('MAC address cannot be empty')
+
+    def _validate_ip_address(self, address) -> Optional[str]:
+        """ Validate that input IP address is valid - raise error if not.
+
+        :param address: IP address to validate, supports all MacUtils formats.
+        """
+        if address:
+            try:
+                return str(ip_address(address))
+            except AddressValueError as e:
+                self.api.WriteMessageToReservationOutput(reservationId=self.sandbox.id,
+                                                         message=INVALID_ADDRESS_ERROR_MESSAGE.format(address))
+                raise ValueError(f'Invalid IP address - {address}') from e
+        else:
+            self.api.WriteMessageToReservationOutput(reservationId=self.sandbox.id, message=EMPTY_ADDRESS_ERROR_MESSAGE)
+            raise ValueError('IP address cannot be empty')
+
+    def _get_provider_for_model(self, model: str) -> ServiceInstance:
+        """ Returns the provider service for the requested model.
+
+        :param model: Requested model.
+        """
+        providers = get_services_from_reservation(self.sandbox, RESOURCE_PROVIDER_MODEL)
+        for provider in providers:
+            provider_model = [a.Value for a in provider.Attributes
+                              if a.Name == f'{provider.ServiceName}.resource_model'][0]
+            if provider_model.lower() in model.lower():
+                return provider
+        raise ValueError(f'Provider service for {model} resource not found in reservation')
+
+    def _set_provider_attrs(self, resource: FindResourceInfo) -> None:
+        """ Set provider service attributes with requested resource values.
+
+        :param resource: Resource to provide.
+        """
+        if resource:
+            provider = self._get_provider_for_model(resource.ResourceModelName)
+            attributes = [AttributeNameValue(f'{provider.ServiceName}.resource_model', resource.ResourceModelName),
+                          AttributeNameValue(f'{provider.ServiceName}.resource_name', resource.Name)]
+            self.api.SetServiceAttributesValues(reservationId=self.sandbox.id, serviceAlias=provider.Alias,
+                                                attributeRequests=attributes)
+
+    def _replace_all(self, providers: List[ServiceInstance], parallel: Optional[bool] = True) -> Dict[str, object]:
+        """ Replace all services with concrete resources.
+
+        Report error if there is sufficient info to provide. It is the caller responsibility to report missing info.
+
+        :param providers: List of providers to activate.
+        :param parallel: If True run replace commands in parallel, else run sequentially.
+        """
+        outputs = {}
+        if parallel:
+            pool = ThreadPool(len(providers))
+            for provider in providers:
+                pool.apply_async(self._execute_target_command, (provider, 'replace_with_concrete', []))
+            pool.close()
+            pool.join()
+        else:
+            for provider in providers:
+                resource_name_attr_name = f'{provider.ServiceName}.resource_name'
+                resource_name = [a.Value for a in provider.Attributes if a.Name == resource_name_attr_name][0]
+                if resource_name:
+                    outputs[resource_name] = self._execute_target_command(provider, 'replace_with_concrete', [])
+                    if isinstance(outputs[resource_name], Exception):
+                        self.api.SetServiceLiveStatus(reservationId=self.sandbox.id, serviceAlias=provider.Alias,
+                                                      liveStatusName='Error', additionalInfo='tool_tip')
+                else:
+                    self.api.SetServiceLiveStatus(reservationId=self.sandbox.id, serviceAlias=provider.Alias,
+                                                  liveStatusName='Error', additionalInfo='tool_tip')
+        return outputs
+
     def _health_check_group(self, health_checks: List[str], parallel: Optional[bool] = True) -> None:
         """ Run group of health check commands.
 
@@ -148,7 +249,7 @@ class HealthCheckOrchestration:
             for health_check in health_checks:
                 hc = self.health_checks[health_check]
                 async_results[health_check] = pool.apply_async(self._execute_target_command,
-                                                              (hc['resource'], hc['command'], hc['inputs']))
+                                                               (hc['resource'], hc['command'], hc['inputs']))
             pool.close()
             pool.join()
             for health_check, result in async_results.items():
@@ -182,7 +283,6 @@ class HealthCheckOrchestration:
         else:
             target_name = target.Name
             target_type = 'Resource'
-        output = None
         try:
             self.sandbox.logger.debug(f'Running command {command_name} on {target_name}')
             command_inputs_msg = ' '.join([f'{ci.Name}={ci.Value}' for ci in command_inputs])
