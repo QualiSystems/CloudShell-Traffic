@@ -4,7 +4,7 @@ user=pypiadmin
 password=pypiadmin
 
 install:
-	pip install -i http://$(repo):8036 --trusted-host $(repo) -U -r requirements-dev.txt
+	pip install -U -r requirements-dev.txt
 
 .PHONY: build
 build:
