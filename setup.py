@@ -3,10 +3,10 @@ from setuptools import setup, find_packages
 
 def main():
 
-    with open('requirements.txt') as f:
-        install_requires = f.read().splitlines()
-    with open('README.txt') as f:
-        long_description = f.read()
+    with open('requirements.txt') as requirements:
+        install_requires = requirements.read().splitlines()
+    with open('README.md') as readme:
+        long_description = readme.read()
 
     setup(
         name='cloudshell-traffic',

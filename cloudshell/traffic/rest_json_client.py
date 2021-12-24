@@ -1,10 +1,9 @@
-
 from json import JSONDecodeError
 
-from requests import packages, Session
+from requests import Session
+from urllib3 import disable_warnings
 
-
-packages.urllib3.disable_warnings()
+disable_warnings()
 
 
 class RestClientException(Exception):
@@ -15,10 +14,8 @@ class RestClientUnauthorizedException(RestClientException):
     pass
 
 
-class RestJsonClient(object):
-
-    def __init__(self, hostname, use_https=True):
-        super(RestJsonClient, self).__init__()
+class RestJsonClient:
+    def __init__(self, hostname, use_https=True) -> None:
         self._hostname = hostname
         self._use_https = use_https
         self._session = Session()
@@ -29,12 +26,12 @@ class RestJsonClient(object):
 
     def _build_url(self, uri):
         if self._hostname not in uri:
-            if not uri.startswith('/'):
-                uri = '/' + uri
+            if not uri.startswith("/"):
+                uri = "/" + uri
             if self._use_https:
-                url = 'https://{0}{1}'.format(self._hostname, uri)
+                url = f"https://{self._hostname}{uri}"
             else:
-                url = 'http://{0}{1}'.format(self._hostname, uri)
+                url = f"http://{self._hostname}{uri}"
         else:
             url = uri
         return url
@@ -43,10 +40,9 @@ class RestJsonClient(object):
         if response.status_code in [200, 201, 204]:
             return response
         elif response.status_code in [401]:
-            raise RestClientUnauthorizedException(self.__class__.__name__, 'Incorrect login or password')
+            raise RestClientUnauthorizedException(self.__class__.__name__, "Incorrect login or password")
         else:
-            raise RestClientException(self.__class__.__name__,
-                                      'Request failed: {0}, {1}'.format(response.status_code, response.text))
+            raise RestClientException(self.__class__.__name__, f"fRequest failed: {response.status_code}, {response.text}")
 
     def request_put(self, uri, data):
         response = self._session.put(self._build_url(uri), data, verify=False)
@@ -56,7 +52,7 @@ class RestJsonClient(object):
         response = self._session.post(self._build_url(uri), json=data, verify=False)
         try:
             return self._valid(response).json()
-        except JSONDecodeError as _:
+        except JSONDecodeError:
             return self._valid(response).content
 
     def request_post_files(self, uri, data, files):

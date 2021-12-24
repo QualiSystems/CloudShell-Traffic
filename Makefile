@@ -4,6 +4,7 @@ user=pypiadmin
 password=pypiadmin
 
 install:
+	python -m pip install -U pip
 	pip install -U -r requirements-dev.txt
 
 .PHONY: build

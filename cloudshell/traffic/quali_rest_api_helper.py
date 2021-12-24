@@ -1,14 +1,13 @@
-
 from io import StringIO
 
 from .rest_json_client import RestJsonClient
 
 
 def create_quali_api_instance(context, logger):
-    """ Get needed attributes from context and create instance of QualiApiHelper """
-    if hasattr(context, 'reservation') and context.reservation:
+    """Get needed attributes from context and create instance of QualiApiHelper."""
+    if hasattr(context, "reservation") and context.reservation:
         domain = context.reservation.domain
-    elif hasattr(context, 'remote_reservation') and context.remote_reservation:
+    elif hasattr(context, "remote_reservation") and context.remote_reservation:
         domain = context.remote_reservation.domain
     else:
         domain = None
@@ -17,12 +16,11 @@ def create_quali_api_instance(context, logger):
     if token:
         instance = QualiAPIHelper(address, logger, token=token, domain=domain)
     else:
-        instance = QualiAPIHelper(address, logger, username='admin', password='admin', domain=domain)
+        instance = QualiAPIHelper(address, logger, username="admin", password="admin", domain=domain)
     return instance
 
 
 class QualiAPIHelper:
-
     def __init__(self, server_name, logger, username=None, password=None, token=None, domain=None):
         self._server_name = server_name
         if ":" not in self._server_name:
@@ -36,35 +34,31 @@ class QualiAPIHelper:
 
     def login(self) -> None:
         """ Login to cloudshell. """
-        uri = 'API/Auth/Login'
+        uri = "API/Auth/Login"
         if self._token:
-            json_data = {'token': self._token, 'domain': self._domain}
+            json_data = {"token": self._token, "domain": self._domain}
         else:
-            json_data = {'username': self._username, 'password': self._password, 'domain': self._domain}
-        result = self.__rest_client.request_put(uri, json_data)
-        self.__rest_client.session.headers.update(authorization="Basic {0}".format(result.replace('"', '')))
+            json_data = {"username": self._username, "password": self._password, "domain": self._domain}
+        result = self.__rest_client.request_put(uri, json_data).replace('"', "")
+        self.__rest_client.session.headers.update(authorization=f"Basic {result}")
 
     def attach_new_file(self, reservation_id: str, file_data: StringIO, file_name: str) -> None:
-        file_to_upload = {'QualiPackage': file_data}
-        data = {'reservationId': reservation_id,
-                'saveFileAs': file_name,
-                'overwriteIfExists': "true"}
-        self.__rest_client.request_post_files('API/Package/AttachFileToReservation', data=data, files=file_to_upload)
+        file_to_upload = {"QualiPackage": file_data}
+        data = {"reservationId": reservation_id, "saveFileAs": file_name, "overwriteIfExists": "true"}
+        self.__rest_client.request_post_files("API/Package/AttachFileToReservation", data=data, files=file_to_upload)
 
     def get_attached_files(self, reservation_id):
-        uri = 'API/Package/GetReservationAttachmentsDetails/{0}'.format(reservation_id)
+        uri = f"API/Package/GetReservationAttachmentsDetails/{reservation_id}"
         result = self.__rest_client.request_get(uri)
-        return result['AllAttachments']
+        return result["AllAttachments"]
 
     def get_attached_file(self, reservation_id, file_name):
-        uri = 'API/Package/GetReservationAttachment/{0}'.format(reservation_id)
-        data = {'reservationId': reservation_id,
-                'FileName': file_name,
-                'SaveToFolderPath': r"na"}
+        uri = f"API/Package/GetReservationAttachment/{reservation_id}"
+        data = {"reservationId": reservation_id, "FileName": file_name, "SaveToFolderPath": r"na"}
         return self.__rest_client.request_post(uri, data)
 
-    def remove_attached_files(self, reservation_id):
+    def remove_attached_files(self, reservation_id: str) -> None:
+        """Remove all attached files from a sandbox."""
         for file_name in self.get_attached_files(reservation_id):
-            file_to_delete = {'reservationId': reservation_id,
-                              'FileName': file_name}
-            self.__rest_client.request_post('API/Package/DeleteFileFromReservation', data=file_to_delete) or []
+            file_to_delete = {"reservationId": reservation_id, "FileName": file_name}
+            self.__rest_client.request_post("API/Package/DeleteFileFromReservation", data=file_to_delete)
