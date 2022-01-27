@@ -1,5 +1,8 @@
 -r requirements.txt
 
+# Testing
+pytest
+
 # Packaging
 wheel
 setuptools-scm
@@ -8,3 +11,4 @@ twine
 # Pipeline
 pre-commit
 pylint
+black[d]

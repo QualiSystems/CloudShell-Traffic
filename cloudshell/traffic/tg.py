@@ -3,15 +3,17 @@ Base classes and helpers for traffic generators shells.
 """
 import logging
 import time
+from typing import Optional
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.logging.qs_logger import get_qs_logger
 from cloudshell.shell.core.context_utils import get_resource_name
+from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 
-from .helpers import get_reservation_id
-from .quali_rest_api_helper import create_quali_api_instance
+from .helpers import get_cs_session, get_reservation_id
+from .rest_api_helpers import SandboxAttachments
 
 TGN_CHASSIS_FAMILY = "CS_TrafficGeneratorChassis"
 TGN_CONTROLLER_FAMILY = "CS_TrafficGeneratorController"
@@ -53,16 +55,16 @@ def get_reservation_ports(session, reservation_id, model_name="Generic Traffic G
 class TrafficDriver(ResourceDriverInterface):
     """Base class for all TG shells drivers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.handler = None
         self.logger = None
 
-    def initialize(self, context, log_group="traffic_shells"):
+    def initialize(self, context, log_group="traffic_shells") -> None:
         self.logger = get_qs_logger(log_group=log_group, log_file_prefix=context.resource.name)
         self.logger.setLevel(logging.DEBUG)
         self.handler.initialize(context, self.logger)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         pass
 
     def get_inventory(self, context):
@@ -72,17 +74,20 @@ class TrafficDriver(ResourceDriverInterface):
 class TrafficHandler:
     """Base class for all TG shell handlers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.resource = None
         self.service = None
         self.logger = None
+        self.address = None
+        self.user = None
+        self.password = None
 
-    def initialize(self, resource, logger, packages_loggers=[]):
+    def initialize(self, resource, logger, packages_loggers: Optional[list] = None) -> None:
         self.resource = resource
         self.service = resource
         self.logger = logger
 
-        for package_logger in packages_loggers:
+        for package_logger in packages_loggers or []:
             package_logger = logging.getLogger(package_logger)
             package_logger.setLevel(self.logger.level)
             for handler in self.logger.handlers:
@@ -108,7 +113,7 @@ class TgControllerDriver(TrafficDriver):
     def initialize(self, context, log_group="traffic_shells"):
         super().initialize(context, log_group)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         self.handler.cleanup()
 
     def keep_alive(self, context, cancellation_context):
@@ -164,19 +169,15 @@ def enqueue_keep_alive(context):
     )
 
 
-def attach_stats_csv(context, logger, view_name, output, suffix="csv"):
-    quali_api_helper = create_quali_api_instance(context, logger)
+def attach_stats_csv(
+    context: ResourceCommandContext, logger: logging.Logger, view_name: str, output: str, suffix: str = "csv"
+) -> str:
+    """Attach statistics CSV to reservation."""
+    quali_api_helper = SandboxAttachments(context.connectivity.server_address, context.connectivity.admin_auth_token, logger)
     quali_api_helper.login()
     full_file_name = view_name.replace(" ", "_") + "_" + time.ctime().replace(" ", "_") + "." + suffix
     quali_api_helper.attach_new_file(get_reservation_id(context), file_data=output, file_name=full_file_name)
-    write_to_reservation_out(context, "Statistics view saved in attached file - " + full_file_name)
-    return full_file_name
-
-
-def write_to_reservation_out(context, message):
-    cs_session = CloudShellAPISession(
-        host=context.connectivity.server_address,
-        token_id=context.connectivity.admin_auth_token,
-        domain=context.reservation.domain,
+    get_cs_session(context).WriteMessageToReservationOutput(
+        get_reservation_id(context), f"Statistics view saved in attached file - {full_file_name}"
     )
-    cs_session.WriteMessageToReservationOutput(get_reservation_id(context), message)
+    return full_file_name

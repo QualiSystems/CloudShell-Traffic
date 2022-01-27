@@ -4,12 +4,15 @@ user=pypiadmin
 password=pypiadmin
 
 install:
-	python -m pip install -U pip
-	pip install -U -r requirements-dev.txt
+	# If we use pip > 20.2.4 it might fail when using proxy - https://stackoverflow.com/questions/56628194/sslerror-installing-with-pip
+	python -m pip install -U "pip==20.2.4"
+	pip install -i http://$(repo):8036 --trusted-host $(repo) -U --pre -r requirements-dev.txt
 
 .PHONY: build
 build:
 	rm -rf dist/*
+	rm -rf *.egg-info
+	rm -rf build
 	python setup.py bdist_wheel
 
 upload:

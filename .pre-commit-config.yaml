@@ -1,19 +1,21 @@
+# If installation fails - export SETUPTOOLS_USE_DISTUTILS=stdlib - as suggested in
+# https://github.com/pre-commit/pre-commit/issues/2178#issuecomment-1002163763
 repos:
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.4.2
+    rev: 5.10.1
     hooks:
       - id: isort
         language_version: python3.7
         args: [--line-length=127]
   - repo: https://github.com/python/black
-    rev: 20.8b1
+    rev: 21.12b0
     hooks:
       - id: black
         language_version: python3.7
         args: [--line-length=127]
   # We can safely ignore flake8 warnings that pylint catches.
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.3
+    rev: 4.0.1
     hooks:
       - id: flake8
         additional_dependencies: [
@@ -43,3 +45,10 @@ repos:
           --max-args=8,
           '--disable=too-few-public-methods,logging-fstring-interpolation,too-many-instance-attributes,no-else-return,too-many-locals,no-self-use,duplicate-code,broad-except,logging-not-lazy,unspecified-encoding',
         ]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.930
+    hooks:
+    -   id: mypy
+        verbose: true
+        entry: bash -c 'mypy "$@" || true' --
+        additional_dependencies: [types-PyYAML, types-requests]

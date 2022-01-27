@@ -1,5 +1,5 @@
 """
-Cloudshell utilities for shells based on .
+Base classes and helpers for CloudShell shells for TGs and related networking equipment.
 """
 from pkgutil import extend_path
 

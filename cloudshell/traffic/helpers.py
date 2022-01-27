@@ -17,7 +17,7 @@ from cloudshell.workflow.orchestration.sandbox import Sandbox
 
 
 class WriteMessageToReservationOutputHandler(logging.Handler):
-    """ Logger handler to write log messages to reservation output. """
+    """Logger handler to write log messages to reservation output."""
 
     def __init__(self, context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> None:
         self.sandbox = context_or_sandbox
@@ -30,49 +30,49 @@ class WriteMessageToReservationOutputHandler(logging.Handler):
         super().__init__()
 
     def emit(self, record: logging.LogRecord) -> None:
-        """ Actually log the specified logging record to reservation output. """
+        """Actually log the specified logging record to reservation output."""
         log_entry = self.format(record)
         self.session.WriteMessageToReservationOutput(self.sandbox_id, log_entry)
 
 
-def get_cs_session(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> CloudShellAPISession:
-    """ Get CS session from context. """
-    if isinstance(context_or_sandbox, Sandbox):
-        return context_or_sandbox.automation_api
+def get_cs_session(cs_object: Union[ResourceCommandContext, Sandbox]) -> CloudShellAPISession:
+    """Get CS session from context."""
+    if isinstance(cs_object, Sandbox):
+        return cs_object.automation_api
     else:
         return CloudShellAPISession(
-            host=context_or_sandbox.connectivity.server_address,
-            token_id=context_or_sandbox.connectivity.admin_auth_token,
-            domain=context_or_sandbox.reservation.domain,
+            cs_object.connectivity.server_address,
+            token_id=cs_object.connectivity.admin_auth_token,
+            domain=cs_object.reservation.domain,
         )
 
 
-def get_reservation_id(context_sandbox_reservation) -> str:
+def get_reservation_id(cs_object) -> str:
     """Returns reservation ID from context, sandbox, or reservation.
 
     Do not add type hinting as there are way too many around cloudshell API.
     """
     try:
-        return context_sandbox_reservation.id
+        return cs_object.id
     except AttributeError:
         pass
     try:
-        return context_sandbox_reservation.reservation.reservation_id
+        return cs_object.reservation.reservation_id
     except AttributeError:
         pass
     try:
-        return context_sandbox_reservation.reservation.id
+        return cs_object.reservation.id
     except AttributeError:
         pass
     try:
-        return context_sandbox_reservation.Reservation.Id
+        return cs_object.Reservation.Id
     except AttributeError:
         pass
-    raise AttributeError(f"Could not get reservation ID from {context_sandbox_reservation}")
+    raise AttributeError(f"Could not get reservation ID from {cs_object}")
 
 
 def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> ReservationDescriptionInfo:
-    """ Get reservation description. """
+    """Get reservation description."""
     reservation_id = get_reservation_id(context_or_sandbox)
     cs_session = get_cs_session(context_or_sandbox)
     return cs_session.GetReservationDetails(reservation_id, disableCache=True).ReservationDescription
@@ -119,7 +119,7 @@ def set_family_attribute(
 def add_resource_to_db(
     context: ResourceCommandContext, resource_model, resource_full_name, resource_address="na", **attributes
 ) -> None:
-    """ Add resource to cloudshell DB if not already exist. """
+    """Add resource to cloudshell DB if not already exist."""
     cs_session = get_cs_session(context)
     resources_w_requested_name = cs_session.FindResources(resourceFullName=resource_full_name).Resources
     if len(resources_w_requested_name) > 0:
@@ -184,7 +184,7 @@ def wait_for_attribute(
     attribute_value: str,
     timeout: int = 4,
 ) -> None:
-    """ Wait until an attribute that was set is updated on the sandbox. """
+    """Wait until an attribute that was set is updated on the sandbox."""
     for _ in range(timeout + 1):
         all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
         service = [s for s in all_services if s.Alias == alias][0]
@@ -197,7 +197,7 @@ def wait_for_attribute(
 def get_resources_from_reservation(
     context_or_sandbox: Union[ResourceCommandContext, Sandbox], *resource_models: str
 ) -> List[ReservedResourceInfo]:
-    """ Get all resources with the requested resource model names. """
+    """Get all resources with the requested resource model names."""
     resources = get_reservation_description(context_or_sandbox).Resources
     return [r for r in resources if r.ResourceModelName in resource_models]
 
@@ -205,7 +205,7 @@ def get_resources_from_reservation(
 def get_services_from_reservation(
     context_or_sandbox: Union[ResourceCommandContext, Sandbox], *service_names: str
 ) -> List[ServiceInstance]:
-    """ Get all services with the requested service names. """
+    """Get all services with the requested service names."""
     services = get_reservation_description(context_or_sandbox).Services
     return [s for s in services if s.ServiceName in service_names]
 
