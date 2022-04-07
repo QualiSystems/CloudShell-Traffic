@@ -5,12 +5,11 @@ Test test_helpers.
 import logging
 
 import pytest
+from helpers import get_reservation_id
+from rest_api_helpers import SandboxAttachments
 from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
-
-from helpers import get_reservation_id
-from rest_api_helpers import SandboxAttachments
 
 RESERVATION_NAME = "testing 1 2 3"
 

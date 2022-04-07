@@ -13,6 +13,7 @@ from cloudshell.api.cloudshell_api import (
     ServiceInstance,
 )
 from cloudshell.shell.core.driver_context import ResourceCommandContext
+from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 
 
@@ -35,16 +36,21 @@ class WriteMessageToReservationOutputHandler(logging.Handler):
         self.session.WriteMessageToReservationOutput(self.sandbox_id, log_entry)
 
 
-def get_cs_session(cs_object: Union[ResourceCommandContext, Sandbox]) -> CloudShellAPISession:
+def get_cs_session(cs_object: object) -> CloudShellAPISession:
     """Get CS session from context."""
-    if isinstance(cs_object, Sandbox):
+    try:
         return cs_object.automation_api
-    else:
-        return CloudShellAPISession(
-            cs_object.connectivity.server_address,
-            token_id=cs_object.connectivity.admin_auth_token,
-            domain=cs_object.reservation.domain,
-        )
+    except AttributeError:
+        pass
+    try:
+        return CloudShellSessionContext(cs_object).get_api()
+    except Exception:
+        pass
+    return CloudShellAPISession(
+        cs_object.connectivity.server_address,
+        token_id=cs_object.connectivity.admin_auth_token,
+        domain=cs_object.reservation.domain,
+    )
 
 
 def get_reservation_id(cs_object) -> str:
