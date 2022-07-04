@@ -11,4 +11,4 @@ twine
 # Pipeline
 pre-commit
 pylint
-black[d]
+pylint_pytest

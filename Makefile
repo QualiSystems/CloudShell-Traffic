@@ -4,8 +4,7 @@ user=pypiadmin
 password=pypiadmin
 
 install:
-	# If we use pip > 20.2.4 it might fail when using proxy - https://stackoverflow.com/questions/56628194/sslerror-installing-with-pip
-	python -m pip install -U "pip==20.2.4"
+	python -m pip install -U pip
 	pip install -i http://$(repo):8036 --trusted-host $(repo) -U --pre -r requirements-dev.txt
 
 .PHONY: build

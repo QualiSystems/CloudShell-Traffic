@@ -19,6 +19,8 @@ TGN_CHASSIS_FAMILY = "CS_TrafficGeneratorChassis"
 TGN_CONTROLLER_FAMILY = "CS_TrafficGeneratorController"
 TGN_PORT_FAMILY = "CS_TrafficGeneratorPort"
 
+BREAKINGPOINT_CHASSIS_MODEL = "BreakingPoint Chassis Shell 2G"
+BREAKINGPOINT_CONTROLLER_MODEL = "BreakingPoint Controller Shell 2G"
 BYTEBLOWER_CHASSIS_MODEL = "ByteBlower Chassis Shell 2G"
 BYTEBLOWER_CONTROLLER_MODEL = "ByteBlower Controller Shell 2G"
 IXIA_CHASSIS_MODEL = "Ixia Chassis Shell 2G"
@@ -56,8 +58,8 @@ class TrafficDriver(ResourceDriverInterface):
     """Base class for all TG shells drivers."""
 
     def __init__(self) -> None:
-        self.handler = None
-        self.logger = None
+        self.handler: TrafficHandler = None
+        self.logger: logging.Logger = None
 
     def initialize(self, context, log_group="traffic_shells") -> None:
         self.logger = get_qs_logger(log_group=log_group, log_file_prefix=context.resource.name)
@@ -77,22 +79,25 @@ class TrafficHandler:
     def __init__(self) -> None:
         self.resource = None
         self.service = None
-        self.logger = None
+        self.logger: logging.Logger = None
         self.address = None
         self.user = None
         self.password = None
 
-    def initialize(self, resource, logger, packages_loggers: Optional[list] = None) -> None:
+    def initialize(self, resource, logger: logging.Logger, packages_loggers: Optional[list] = None) -> None:
         self.resource = resource
         self.service = resource
         self.logger = logger
 
-        for package_logger in packages_loggers or []:
-            package_logger = logging.getLogger(package_logger)
+        for package_logger_name in packages_loggers or []:
+            package_logger = logging.getLogger(package_logger_name)
             package_logger.setLevel(self.logger.level)
             for handler in self.logger.handlers:
                 if handler not in package_logger.handlers:
                     package_logger.addHandler(handler)
+
+    def cleanup(self) -> None:
+        pass
 
     def get_connection_details(self, context):
         self.address = context.resource.address
@@ -104,12 +109,9 @@ class TrafficHandler:
         self.logger.debug(f"Password - {self.password}")
 
 
-class TgChassisDriver(TrafficDriver):
-    def initialize(self, context, log_group="traffic_shells"):
-        super().initialize(context, log_group)
-
-
 class TgControllerDriver(TrafficDriver):
+    """Base class for all TG controller drivers."""
+
     def initialize(self, context, log_group="traffic_shells"):
         super().initialize(context, log_group)
 
@@ -144,10 +146,6 @@ class TgControllerDriver(TrafficDriver):
 
     def get_statistics(self, context, view_name, output_type):
         return self.handler.get_statistics(context, view_name, output_type)
-
-
-class TgChassisHandler(TrafficHandler):
-    pass
 
 
 class TgControllerHandler(TrafficHandler):
