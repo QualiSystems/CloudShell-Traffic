@@ -3,6 +3,7 @@ Base classes and helpers for traffic generators shells.
 """
 import logging
 import time
+from abc import ABC
 from typing import Optional
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
@@ -54,108 +55,7 @@ def get_reservation_ports(session, reservation_id, model_name="Generic Traffic G
     return reservation_ports
 
 
-class TrafficDriver(ResourceDriverInterface):
-    """Base class for all TG shells drivers."""
-
-    def __init__(self) -> None:
-        self.handler: TrafficHandler = None
-        self.logger: logging.Logger = None
-
-    def initialize(self, context, log_group="traffic_shells") -> None:
-        self.logger = get_qs_logger(log_group=log_group, log_file_prefix=context.resource.name)
-        self.logger.setLevel(logging.DEBUG)
-        self.handler.initialize(context, self.logger)
-
-    def cleanup(self) -> None:
-        pass
-
-    def get_inventory(self, context):
-        return self.handler.load_inventory(context)
-
-
-class TrafficHandler:
-    """Base class for all TG shell handlers."""
-
-    def __init__(self) -> None:
-        self.resource = None
-        self.service = None
-        self.logger: logging.Logger = None
-        self.address = None
-        self.user = None
-        self.password = None
-
-    def initialize(self, resource, logger: logging.Logger, packages_loggers: Optional[list] = None) -> None:
-        self.resource = resource
-        self.service = resource
-        self.logger = logger
-
-        for package_logger_name in packages_loggers or []:
-            package_logger = logging.getLogger(package_logger_name)
-            package_logger.setLevel(self.logger.level)
-            for handler in self.logger.handlers:
-                if handler not in package_logger.handlers:
-                    package_logger.addHandler(handler)
-
-    def cleanup(self) -> None:
-        pass
-
-    def get_connection_details(self, context):
-        self.address = context.resource.address
-        self.logger.debug(f"Address - {self.address}")
-        self.user = self.resource.user
-        self.logger.debug(f"User - {self.user}")
-        self.logger.debug(f"Encrypted password - {self.resource.password}")
-        self.password = CloudShellSessionContext(context).get_api().DecryptPassword(self.resource.password).Value
-        self.logger.debug(f"Password - {self.password}")
-
-
-class TgControllerDriver(TrafficDriver):
-    """Base class for all TG controller drivers."""
-
-    def initialize(self, context, log_group="traffic_shells"):
-        super().initialize(context, log_group)
-
-    def cleanup(self) -> None:
-        self.handler.cleanup()
-
-    def keep_alive(self, context, cancellation_context):
-        while not cancellation_context.is_cancelled:
-            time.sleep(2)
-        if cancellation_context.is_cancelled:
-            self.cleanup()
-
-    def load_config(self, context, config_file_location):
-        enqueue_keep_alive(context)
-        return self.handler.load_config(context, config_file_location)
-
-    def send_arp(self, context):
-        self.handler.send_arp()
-
-    def start_protocols(self, context):
-        self.handler.start_protocols()
-
-    def stop_protocols(self, context):
-        self.handler.stop_protocols()
-
-    def start_traffic(self, context, blocking):
-        self.handler.start_traffic(context, blocking)
-        return f"traffic started in {blocking} mode"
-
-    def stop_traffic(self, context):
-        self.handler.stop_traffic()
-
-    def get_statistics(self, context, view_name, output_type):
-        return self.handler.get_statistics(context, view_name, output_type)
-
-
-class TgControllerHandler(TrafficHandler):
-    """Bas class for all TG controller handlers shells."""
-
-    def initialize(self, context, logger, service):
-        super().initialize(resource=service, logger=logger)
-
-
-def enqueue_keep_alive(context):
+def enqueue_keep_alive(context: ResourceCommandContext) -> None:
     cs_session = CloudShellAPISession(
         host=context.connectivity.server_address,
         token_id=context.connectivity.admin_auth_token,
@@ -179,3 +79,85 @@ def attach_stats_csv(
         get_reservation_id(context), f"Statistics view saved in attached file - {full_file_name}"
     )
     return full_file_name
+
+
+class TgControllerDriver(ResourceDriverInterface):
+    """Base class for all TG controller drivers."""
+
+    def __init__(self) -> None:
+        self.handler: TgControllerHandler = None
+        self.logger: logging.Logger = None
+
+    def initialize(self, context, log_group="traffic_shells"):
+        self.logger = get_qs_logger(log_group=log_group, log_file_prefix=context.resource.name)
+        self.logger.setLevel(logging.DEBUG)
+        self.handler.initialize(context, self.logger)
+
+    def cleanup(self) -> None:
+        self.handler.cleanup()
+
+    def keep_alive(self, context, cancellation_context):
+        while not cancellation_context.is_cancelled:
+            time.sleep(2)
+        if cancellation_context.is_cancelled:
+            self.cleanup()
+
+    def load_config(self, context: ResourceCommandContext, config_file_location: str) -> None:
+        enqueue_keep_alive(context)
+        self.handler.load_config(context, config_file_location)
+
+    def send_arp(self, context: ResourceCommandContext) -> None:
+        self.handler.send_arp()
+
+    def start_protocols(self, context):
+        self.handler.start_protocols()
+
+    def stop_protocols(self, context):
+        self.handler.stop_protocols()
+
+    def start_traffic(self, context, blocking):
+        self.handler.start_traffic(context, blocking)
+        return f"traffic started in {blocking} mode"
+
+    def stop_traffic(self, context):
+        self.handler.stop_traffic()
+
+    def get_statistics(self, context, view_name, output_type):
+        return self.handler.get_statistics(context, view_name, output_type)
+
+    def get_inventory(self, context):
+        return self.handler.load_inventory(context)
+
+
+class TgControllerHandler(ABC):
+    """Bas class for all TG controller handlers shells."""
+
+    def __init__(self) -> None:
+        self.service = None
+        self.logger: logging.Logger = None
+        self.address = None
+        self.user = None
+        self.password = None
+
+    def initialize(self, service, logger: logging.Logger, packages_loggers: Optional[list] = None) -> None:
+        self.service = service
+        self.logger = logger
+
+        for package_logger_name in packages_loggers or []:
+            package_logger = logging.getLogger(package_logger_name)
+            package_logger.setLevel(self.logger.level)
+            for handler in self.logger.handlers:
+                if handler not in package_logger.handlers:
+                    package_logger.addHandler(handler)
+
+    def cleanup(self) -> None:
+        pass
+
+    def get_connection_details(self, context):
+        self.address = context.resource.address
+        self.logger.debug(f"Address - {self.address}")
+        self.user = self.resource.user
+        self.logger.debug(f"User - {self.user}")
+        self.logger.debug(f"Encrypted password - {self.resource.password}")
+        self.password = CloudShellSessionContext(context).get_api().DecryptPassword(self.resource.password).Value
+        self.logger.debug(f"Password - {self.password}")
