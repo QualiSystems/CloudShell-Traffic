@@ -30,7 +30,7 @@ def main() -> None:
             "Intended Audience :: Developers",
             "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
-            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.9",
         ],
     )
 
