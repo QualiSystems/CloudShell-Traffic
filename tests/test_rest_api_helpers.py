@@ -8,13 +8,14 @@ import pytest
 from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
+from cloudshell.logging.qs_logger import get_qs_logger
 from cloudshell.traffic.helpers import get_reservation_id
 from cloudshell.traffic.rest_api_helpers import SandboxAttachments
 
 RESERVATION_NAME = "testing 1 2 3"
 
 
-logger = logging.getLogger()
+logger = get_qs_logger()
 logger.setLevel(logging.DEBUG)
 
 
@@ -25,17 +26,17 @@ def session() -> CloudShellAPISession:
 
 
 @pytest.fixture()
-def test_helper(session: CloudShellAPISession) -> TestHelpers:
+def test_helpers(session: CloudShellAPISession) -> TestHelpers:
     """Yield configured TestHelper object."""
     return TestHelpers(session)
 
 
-def test_sandbox_attachments(test_helper: TestHelpers) -> None:
+def test_sandbox_attachments(test_helpers: TestHelpers) -> None:
     """Test sandbox_attachments."""
-    test_helper.create_reservation(RESERVATION_NAME)
-    quali_api = SandboxAttachments(test_helper.session.host, test_helper.session.token_id, logging.getLogger())
+    test_helpers.create_reservation(RESERVATION_NAME)
+    quali_api = SandboxAttachments(test_helpers.session.host, test_helpers.session.token_id, logging.getLogger())
     quali_api.login()
-    reservation_id = get_reservation_id(test_helper.reservation)
+    reservation_id = get_reservation_id(test_helpers.reservation)
     quali_api.attach_new_file(reservation_id, "Hello World 1", "test1.txt")
     quali_api.attach_new_file(reservation_id, "Hello World 2", "test2.txt")
     attached_files = quali_api.get_attached_files(reservation_id)

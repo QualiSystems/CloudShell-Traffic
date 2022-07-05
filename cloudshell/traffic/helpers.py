@@ -8,6 +8,7 @@ from typing import List, Union
 
 from cloudshell.api.cloudshell_api import (
     CloudShellAPISession,
+    CreateReservationResponseInfo,
     ReservationDescriptionInfo,
     ReservedResourceInfo,
     ServiceInstance,
@@ -17,13 +18,13 @@ from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionCo
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 
 
-class WriteMessageToReservationOutputHandler(logging.Handler):
+class ReservationOutputHandler(logging.Handler):
     """Logger handler to write log messages to reservation output."""
 
     def __init__(self, context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> None:
         """Initialize session and sandbox ID."""
-        self.session = context_or_sandbox.automation_api
-        self.sandbox_id = context_or_sandbox.id
+        self.session = get_cs_session(context_or_sandbox)
+        self.sandbox_id = get_reservation_id(context_or_sandbox)
         super().__init__()
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -32,7 +33,7 @@ class WriteMessageToReservationOutputHandler(logging.Handler):
         self.session.WriteMessageToReservationOutput(self.sandbox_id, log_entry)
 
 
-def get_cs_session(cs_object: Union[ResourceCommandContext, Sandbox]) -> CloudShellAPISession:
+def get_cs_session(cs_object: Union[ResourceCommandContext, Sandbox, CreateReservationResponseInfo]) -> CloudShellAPISession:
     """Get CS session from context."""
     try:
         return cs_object.automation_api
@@ -49,13 +50,13 @@ def get_cs_session(cs_object: Union[ResourceCommandContext, Sandbox]) -> CloudSh
     )
 
 
-def get_reservation_id(cs_object: object) -> str:
+def get_reservation_id(cs_object: Union[CreateReservationResponseInfo, Sandbox]) -> str:
     """Return reservation ID from context, sandbox, or reservation.
 
     Do not add type hinting as there are way too many around cloudshell API.
     """
     try:
-        return cs_object.id  # type: ignore[attr-defined]
+        return cs_object.id
     except AttributeError:
         pass
     try:
@@ -67,7 +68,7 @@ def get_reservation_id(cs_object: object) -> str:
     except AttributeError:
         pass
     try:
-        return cs_object.Reservation.Id  # type: ignore[attr-defined]
+        return cs_object.Reservation.Id
     except AttributeError:
         pass
     raise AttributeError(f"Could not get reservation ID from {cs_object}")
