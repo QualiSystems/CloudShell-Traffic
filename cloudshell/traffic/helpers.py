@@ -21,22 +21,18 @@ class WriteMessageToReservationOutputHandler(logging.Handler):
     """Logger handler to write log messages to reservation output."""
 
     def __init__(self, context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> None:
-        self.sandbox = context_or_sandbox
-        if isinstance(self.sandbox, Sandbox):
-            self.session = self.sandbox.automation_api
-            self.sandbox_id = self.sandbox.id
-        else:
-            self.session = get_cs_session(context_or_sandbox)
-            self.sandbox_id = get_reservation_id(context_or_sandbox)
+        """Initialize session and sandbox ID."""
+        self.session = context_or_sandbox.automation_api
+        self.sandbox_id = context_or_sandbox.id
         super().__init__()
 
     def emit(self, record: logging.LogRecord) -> None:
-        """Actually log the specified logging record to reservation output."""
+        """Log the specified logging record to reservation output."""
         log_entry = self.format(record)
         self.session.WriteMessageToReservationOutput(self.sandbox_id, log_entry)
 
 
-def get_cs_session(cs_object: object) -> CloudShellAPISession:
+def get_cs_session(cs_object: Union[ResourceCommandContext, Sandbox]) -> CloudShellAPISession:
     """Get CS session from context."""
     try:
         return cs_object.automation_api
@@ -44,7 +40,7 @@ def get_cs_session(cs_object: object) -> CloudShellAPISession:
         pass
     try:
         return CloudShellSessionContext(cs_object).get_api()
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         pass
     return CloudShellAPISession(
         cs_object.connectivity.server_address,
@@ -53,25 +49,25 @@ def get_cs_session(cs_object: object) -> CloudShellAPISession:
     )
 
 
-def get_reservation_id(cs_object) -> str:
-    """Returns reservation ID from context, sandbox, or reservation.
+def get_reservation_id(cs_object: object) -> str:
+    """Return reservation ID from context, sandbox, or reservation.
 
     Do not add type hinting as there are way too many around cloudshell API.
     """
     try:
-        return cs_object.id
+        return cs_object.id  # type: ignore[attr-defined]
     except AttributeError:
         pass
     try:
-        return cs_object.reservation.reservation_id
+        return cs_object.reservation.reservation_id  # type: ignore[attr-defined]
     except AttributeError:
         pass
     try:
-        return cs_object.reservation.id
+        return cs_object.reservation.id  # type: ignore[attr-defined]
     except AttributeError:
         pass
     try:
-        return cs_object.Reservation.Id
+        return cs_object.Reservation.Id  # type: ignore[attr-defined]
     except AttributeError:
         pass
     raise AttributeError(f"Could not get reservation ID from {cs_object}")
@@ -123,7 +119,11 @@ def set_family_attribute(
 
 
 def add_resource_to_db(
-    context: ResourceCommandContext, resource_model, resource_full_name, resource_address="na", **attributes
+    context: ResourceCommandContext,
+    resource_model: str,
+    resource_full_name: str,
+    resource_address: str = "na",
+    **attributes: str,
 ) -> None:
     """Add resource to cloudshell DB if not already exist."""
     cs_session = get_cs_session(context)
@@ -216,8 +216,8 @@ def get_services_from_reservation(
     return [s for s in services if s.ServiceName in service_names]
 
 
-def get_location(port_resource) -> str:
-    """Extracts port location in format ip/module/port from port full address.
+def get_location(port_resource: ReservedResourceInfo) -> str:
+    """Extract port location in format ip/module/port from port full address.
 
     :param port_resource: Port resource object.
     """

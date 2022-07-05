@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 
 def main() -> None:
-    """Packaging business logic."""
+    """Package business logic."""
     with open("requirements.txt") as requirements:
         install_requires = requirements.read().splitlines()
     with open("README.md") as readme:

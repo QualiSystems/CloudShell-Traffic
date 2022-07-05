@@ -11,7 +11,8 @@ clean:
 install:
 	make clean
 	python -m pip install -U pip
-	pip install -U -r requirements-dev.txt
+	pip install -r requirements-dev.txt
+	pip install --index-url http://$(repo):8036 --trusted-host $(repo) --pre -U shellfoundry-traffic
 
 .PHONY: build
 build:

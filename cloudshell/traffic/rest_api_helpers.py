@@ -46,10 +46,9 @@ class RestJsonClient:
         """Validate response."""
         if response.status_code in [200, 201, 204]:
             return response
-        elif response.status_code in [401]:
+        if response.status_code in [401]:
             raise RestClientUnauthorizedException(self.__class__.__name__, "Incorrect login or password")
-        else:
-            raise RestClientException(self.__class__.__name__, f"fRequest failed: {response.status_code}, {response.text}")
+        raise RestClientException(self.__class__.__name__, f"fRequest failed: {response.status_code}, {response.text}")
 
     def request_put(self, uri: str, data: dict) -> str:
         """PUT."""
@@ -115,7 +114,7 @@ class SandboxAttachments:
         """Get attached file content from reservation."""
         uri = f"API/Package/GetReservationAttachment/{reservation_id}"
         data = {"reservationId": reservation_id, "FileName": file_name, "SaveToFolderPath": r"na"}
-        return self.__rest_client.request_post(uri, data)
+        return self.__rest_client.request_post(uri, data)  # type: ignore[return-value]
 
     def remove_attached_files(self, reservation_id: str) -> None:
         """Remove all attached files from a sandbox."""

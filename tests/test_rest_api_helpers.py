@@ -5,11 +5,11 @@ Test test_helpers.
 import logging
 
 import pytest
-from helpers import get_reservation_id
-from rest_api_helpers import SandboxAttachments
 from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
+from cloudshell.traffic.helpers import get_reservation_id
+from cloudshell.traffic.rest_api_helpers import SandboxAttachments
 
 RESERVATION_NAME = "testing 1 2 3"
 
@@ -20,15 +20,13 @@ logger.setLevel(logging.DEBUG)
 
 @pytest.fixture()
 def session() -> CloudShellAPISession:
-    """Yields CloudShell session."""
-    session = create_session_from_config()
-    yield session
-    # todo: delete session.
+    """Yield CloudShell session."""
+    return create_session_from_config()
 
 
 @pytest.fixture()
 def test_helper(session: CloudShellAPISession) -> TestHelpers:
-    """Yields configured TestHelper object."""
+    """Yield configured TestHelper object."""
     return TestHelpers(session)
 
 
