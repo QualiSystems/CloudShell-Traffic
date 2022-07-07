@@ -50,7 +50,7 @@ def get_cs_session(cs_object: Union[ResourceCommandContext, Sandbox, CreateReser
     )
 
 
-def get_reservation_id(cs_object: Union[CreateReservationResponseInfo, Sandbox]) -> str:
+def get_reservation_id(cs_object: Union[CreateReservationResponseInfo, Sandbox, ResourceCommandContext]) -> str:
     """Return reservation ID from context, sandbox, or reservation.
 
     Do not add type hinting as there are way too many around cloudshell API.

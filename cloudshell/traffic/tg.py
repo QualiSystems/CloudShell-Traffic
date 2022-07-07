@@ -70,7 +70,8 @@ class TgControllerDriver(ResourceDriverInterface):
         self.logger: logging.Logger = None
 
     def initialize(self, context: InitCommandContext) -> None:
-        """Default empty implementation for abstract method."""
+        """Default implementation for abstract method."""
+        self.init_loggers(name=context.resource.name)
 
     def cleanup(self) -> None:
         """Default empty implementation for abstract method."""
