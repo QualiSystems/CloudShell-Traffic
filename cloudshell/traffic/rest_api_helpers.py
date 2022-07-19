@@ -1,6 +1,7 @@
 """
 Helpers wrapping some Cloudshell REST API calls that has no official python API.
 """
+import json
 import logging
 from io import StringIO
 from json import JSONDecodeError
@@ -45,6 +46,12 @@ class RestJsonClient:
     def _valid(self, response: Response) -> Response:
         """Validate response."""
         if response.status_code in [200, 201, 204]:
+            try:
+                content = json.loads(response.content.decode("utf-8"))
+            except JSONDecodeError:
+                content = response.content.decode("utf-8")
+            if isinstance(content, dict) and not content["Success"]:
+                raise RestClientException(self.__class__.__name__, f"fRequest failed: {content['ErrorMessage']}")
             return response
         if response.status_code in [401]:
             raise RestClientUnauthorizedException(self.__class__.__name__, "Incorrect login or password")

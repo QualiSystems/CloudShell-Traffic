@@ -18,7 +18,7 @@ logger = get_qs_logger()
 logger.setLevel(logging.DEBUG)
 
 
-REST_SERVER = "172.30.180.76"
+REST_SERVER = "localhost"
 
 
 @pytest.fixture

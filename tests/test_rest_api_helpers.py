@@ -10,7 +10,7 @@ from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_c
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.logging.qs_logger import get_qs_logger
 from cloudshell.traffic.helpers import get_reservation_id
-from cloudshell.traffic.rest_api_helpers import SandboxAttachments
+from cloudshell.traffic.rest_api_helpers import RestClientException, RestClientUnauthorizedException, SandboxAttachments
 
 RESERVATION_NAME = "testing 1 2 3"
 
@@ -46,3 +46,17 @@ def test_sandbox_attachments(test_helpers: TestHelpers) -> None:
     assert test1_content.decode() == "Hello World 1"
     test2_content = quali_api.get_attached_file(reservation_id, "test2.txt")
     assert test2_content.decode() == "Hello World 2"
+    quali_api.remove_attached_files(reservation_id)
+    assert not quali_api.get_attached_files(reservation_id)
+
+
+def test_negative(test_helpers: TestHelpers) -> None:
+    """Negative tests."""
+    test_helpers.create_reservation(RESERVATION_NAME)
+    quali_api = SandboxAttachments(test_helpers.session.host, "Invalid", logging.getLogger())
+    with pytest.raises(RestClientUnauthorizedException):
+        quali_api.login()
+    quali_api = SandboxAttachments(test_helpers.session.host, test_helpers.session.token_id, logging.getLogger())
+    quali_api.login()
+    with pytest.raises(RestClientException):
+        quali_api.attach_new_file("Invalid", "Hello World 1", "test1.txt")
