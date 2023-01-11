@@ -5,7 +5,7 @@ Test test_helpers.
 import logging
 
 import pytest
-from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
+from shellfoundry_traffic.test_helpers import TgTestHelpers, create_session_from_config
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.logging.qs_logger import get_qs_logger
@@ -26,12 +26,12 @@ def session() -> CloudShellAPISession:
 
 
 @pytest.fixture()
-def test_helpers(session: CloudShellAPISession) -> TestHelpers:
+def test_helpers(session: CloudShellAPISession) -> TgTestHelpers:
     """Yield configured TestHelper object."""
-    return TestHelpers(session)
+    return TgTestHelpers(session)
 
 
-def test_sandbox_attachments(test_helpers: TestHelpers) -> None:
+def test_sandbox_attachments(test_helpers: TgTestHelpers) -> None:
     """Test sandbox_attachments."""
     test_helpers.create_reservation(RESERVATION_NAME)
     quali_api = SandboxAttachments(test_helpers.session.host, test_helpers.session.token_id, logging.getLogger())
@@ -50,7 +50,7 @@ def test_sandbox_attachments(test_helpers: TestHelpers) -> None:
     assert not quali_api.get_attached_files(reservation_id)
 
 
-def test_negative(test_helpers: TestHelpers) -> None:
+def test_negative(test_helpers: TgTestHelpers) -> None:
     """Negative tests."""
     test_helpers.create_reservation(RESERVATION_NAME)
     quali_api = SandboxAttachments(test_helpers.session.host, "Invalid", logging.getLogger())

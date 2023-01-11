@@ -31,6 +31,9 @@ XENA_CHASSIS_MODEL = "Xena Chassis Shell 2G"
 XENA_CONTROLLER_MODEL = "Xena Controller Shell 2G"
 
 
+keep_alive_reservations = []
+
+
 def is_blocking(blocking: str) -> bool:
     """Return True if the value of `blocking` parameter represents true else returns false.
 
@@ -41,11 +44,14 @@ def is_blocking(blocking: str) -> bool:
 
 def enqueue_keep_alive(context: ResourceCommandContext) -> None:
     """Enqueue TgControllerDriver.keep_alive command to run in the background."""
+    if context.reservation.reservation_id in keep_alive_reservations:
+        return
     cs_session = get_cs_session(context)
     resource_name = get_resource_name(context=context)
     cs_session.EnqueueCommand(
         reservationId=get_reservation_id(context), targetName=resource_name, targetType="Service", commandName="keep_alive"
     )
+    keep_alive_reservations.append(context.reservation.reservation_id)
 
 
 def attach_stats_csv(

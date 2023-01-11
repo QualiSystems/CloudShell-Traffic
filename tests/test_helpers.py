@@ -6,7 +6,7 @@ import logging
 from typing import Iterable
 
 import pytest
-from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
+from shellfoundry_traffic.test_helpers import TgTestHelpers, create_session_from_config
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.logging.qs_logger import get_qs_logger
@@ -28,16 +28,16 @@ def session() -> CloudShellAPISession:
 
 
 @pytest.fixture
-def test_helpers(session: CloudShellAPISession) -> Iterable[TestHelpers]:
-    """Yield configured TestHelpers object with reservation."""
-    test_helpers = TestHelpers(session)
+def test_helpers(session: CloudShellAPISession) -> Iterable[TgTestHelpers]:
+    """Yield configured TgTestHelpers object with reservation."""
+    test_helpers = TgTestHelpers(session)
     test_helpers.create_reservation()
     yield test_helpers
     test_helpers.end_reservation()
 
 
 @pytest.fixture
-def sandbox(test_helpers: TestHelpers) -> Sandbox:
+def sandbox(test_helpers: TgTestHelpers) -> Sandbox:
     """Yield Sandbox."""
     test_helpers.attach_to_cloudshell_as()
     return Sandbox()

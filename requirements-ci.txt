@@ -1,6 +1,0 @@
--r requirements.txt
-
-# Pipeline
-pre-commit
-pylint
-pylint_pytest

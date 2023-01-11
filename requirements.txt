@@ -3,3 +3,17 @@ cloudshell-orch-core>=3.3.0.0,<3.4.0.0
 cloudshell-shell-core>=5.0.3,<6.0.0
 
 requests
+
+# Pipeline
+pre-commit
+pylint
+pylint_pytest
+
+# Testing
+pytest
+shellfoundry
+
+# Packaging
+setuptools-scm
+build
+twine

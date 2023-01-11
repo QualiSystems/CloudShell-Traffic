@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+
+[tool.isort]
+line_length = 127
+profile = "black"
+
+[tool.black]
+line-length = 127
+
+[tool.pylint]
+extension-pkg-whitelist = "pydantic"
+max-line-length = 127
+
+[tool.mypy]
+ignore_missing_imports = true
+allow_untyped_calls = true
+allow_untyped_defs = false
+allow_incomplete_defs = false
+no_strict_optional = true
+show_error_codes = true
+follow_imports = "skip"
