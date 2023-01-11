@@ -183,6 +183,7 @@ def wait_for_connectors(
     raise TimeoutError(f"Connectors {aliases} not in reservation after {timeout} seconds")
 
 
+# pylint: disable=too-many-arguments
 def wait_for_attribute(
     cs_session: CloudShellAPISession,
     reservation_id: str,
